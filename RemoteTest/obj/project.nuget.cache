@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "FTW1j4pYV5PBJ07IRAOiuDJYJElEtGjOuiqPQH6et8efQRg2YESxRxc6FUPnPqODbU+mTah3QrG0T8uDWylrwg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\320289418\\OneDrive - Philips\\Desktop\\Test\\RemoteTest\\RemoteTest\\RemoteTest.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\320289418\\.nuget\\packages\\nunit\\4.3.2\\nunit.4.3.2.nupkg.sha512"
+  ],
+  "logs": []
+}
