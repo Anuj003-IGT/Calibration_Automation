@@ -1,11 +1,3 @@
-﻿#region (C) Copyright 2024 Philips Medical Systems Nederland B.V.
-//
-// All rights are reserved. Reproduction or transmission in whole or in part, in
-// any form or by any means, electronic, mechanical or otherwise, is prohibited
-// without the prior written permission of the copyright owner.
-//
-#endregion
-
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -24,63 +16,81 @@ namespace Utility
 
         public void Start()
         {
+            Console.WriteLine("[Start] RemoteAccessServerToolPath: " + RemoteAccessServerToolPath);
+
             _remoteAccessTool = Process.Start(RemoteAccessServerToolPath);
         }
 
         public bool StartProcessAndWait(string remoteSourceFilePath, int waitTimeInSeconds, string args)
         {
-            return Execute("StartProcessAndWait", $"{remoteSourceFilePath} {waitTimeInSeconds.ToString()} {args}");
+            Console.WriteLine("[StartProcessAndWait] FilePath: " + remoteSourceFilePath);
+            Console.WriteLine("[StartProcessAndWait] Args: " + args);
+            return Execute("StartProcessAndWait", $"{remoteSourceFilePath} {waitTimeInSeconds} {args}");
         }
 
         public bool CopyDirectory(string sourceDirectoryPath, string targetDirectoryPath,
             bool isCopyToTargetPC = true)
         {
+            Console.WriteLine("[CopyDirectory] Source: " + sourceDirectoryPath);
+            Console.WriteLine("[CopyDirectory] Target: " + targetDirectoryPath);
             var command = isCopyToTargetPC ? "CopyDirectoryToRecursive" : "CopyDirectoryFrom";
             return Execute(command, $"{sourceDirectoryPath} {targetDirectoryPath}");
         }
 
         public bool CopyFile(string remoteSourceFilePath, string localTargetDirectoryPath)
         {
+            Console.WriteLine("[CopyFile] Source: " + remoteSourceFilePath);
+            Console.WriteLine("[CopyFile] Target: " + localTargetDirectoryPath);
             return Execute("CopyFileFrom", $"{remoteSourceFilePath} {localTargetDirectoryPath}");
         }
 
         public bool DeleteFile(string remoteSourceFilePath)
         {
+            Console.WriteLine("[DeleteFile] Path: " + remoteSourceFilePath);
             return Execute("DeleteFile", $"{remoteSourceFilePath}");
         }
 
         public bool CreateDirectory(string remoteSourceFilePath)
         {
+            Console.WriteLine("[CreateDirectory] Path: " + remoteSourceFilePath);
             return Execute("CreateDir", $"{remoteSourceFilePath}");
         }
 
         public bool DeleteDirectory(string remoteSourceFilePath)
         {
+            Console.WriteLine("[DeleteDirectory] Path: " + remoteSourceFilePath);
             return Execute("DeleteDir", $"{remoteSourceFilePath}");
         }
 
         private static bool Execute(string command, string args)
         {
-            var sb = new StringBuilder();
-            sb.Append(command + " ");
-            sb.Append(TestTargetSystem.GetTargetIp());
-            sb.Append(" " + args);
+            var fullArgs = new StringBuilder();
+            fullArgs.Append(command + " ");
+            fullArgs.Append(TestTargetSystem.GetTargetIp());
+            fullArgs.Append(" " + args);
 
-            var p = sb.ToString();
-            var process = Process.Start(RemoteAccessClientToolPath, p);
+            string fullCommandArgs = fullArgs.ToString();
+
+            Console.WriteLine("[Execute] RemoteAccessClientToolPath: " + RemoteAccessClientToolPath);
+            Console.WriteLine("[Execute] Full command: " + fullCommandArgs);
+
+            var process = Process.Start(RemoteAccessClientToolPath, fullCommandArgs);
             process?.WaitForExit();
+
+            Console.WriteLine("[Execute] ExitCode: " + process?.ExitCode);
+
             return process?.ExitCode == 0;
         }
 
         public void Stop()
         {
-                if (_remoteAccessTool == null)
-                    throw new InvalidOperationException("RemoteAccessTool was never running");
-                if (_remoteAccessTool.HasExited)
-                    throw new InvalidOperationException("RemoteAccessTool exited unexpectedly");
+            if (_remoteAccessTool == null)
+                throw new InvalidOperationException("RemoteAccessTool was never running");
+            if (_remoteAccessTool.HasExited)
+                throw new InvalidOperationException("RemoteAccessTool exited unexpectedly");
 
-                _remoteAccessTool.Kill();
-                _remoteAccessTool = null;
+            _remoteAccessTool.Kill();
+            _remoteAccessTool = null;
         }
     }
 }
