@@ -1,45 +1,96 @@
-﻿using System;
-using Utility;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Reflection;
+using System.Text;
 
-public class RemoteBatchExecutionTest
+namespace Utility
 {
-    public static void Main(string[] args)
+    public class RemoteAccessToolHelper
     {
-        Console.WriteLine("Starting remote batch execution test...");
+        private Process _remoteAccessTool;
 
-        var tester = new RemoteBatchExecutionTest();
-        tester.TestAllVariants();
+        private static string RemoteAccessDirectoryPath => $@"{Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\"))}Tools";
+        private static string RemoteAccessClientToolPath => Path.Combine(RemoteAccessDirectoryPath, "IAC.RemoteAccess.Client.exe");
+        private static string RemoteAccessServerToolPath => Path.Combine(RemoteAccessDirectoryPath, "IAC.RemoteAccess.exe");
 
-        Console.WriteLine("All tests finished.");
-    }
-
-    public void TestAllVariants()
-    {
-        var helper = new RemoteAccessToolHelper();
-        string remotePathRaw = @"I:\demo_script.bat";
-        string remotePathQuoted = $"\"{remotePathRaw}\"";
-        int waitTime = 60;
-
-       // TestVariant(helper, "Raw path, no args", remotePathRaw, waitTime, "");
-        // TestVariant(helper, "Quoted path, no args", remotePathQuoted, waitTime, "");
-
-        // NEW: Test running the batch file via cmd.exe
-        Console.WriteLine("Testing batch file execution via cmd.exe...");
-        bool resultCmd = helper.StartProcessAndWait("cmd.exe", waitTime, "/c " + remotePathQuoted);
-        Console.WriteLine("Batch file execution via cmd.exe result: " + resultCmd);
-    }
-
-    private void TestVariant(RemoteAccessToolHelper helper, string variant, string path, int wait, string args)
-    {
-        try
+        public void Start()
         {
-            Console.WriteLine($"Testing: {variant}");
-            bool result = helper.StartProcessAndWait(path, wait, args);
-            Console.WriteLine($"Result for {variant}: {(result ? "Success" : "Failure")}\n");
+            Console.WriteLine("[Start] RemoteAccessServerToolPath: " + RemoteAccessServerToolPath);
+
+            _remoteAccessTool = Process.Start(RemoteAccessServerToolPath);
         }
-        catch (Exception ex)
+
+        public bool StartProcessAndWait(string remoteSourceFilePath, int waitTimeInSeconds, string args)
         {
-            Console.WriteLine($"Exception for {variant}: {ex.Message}\n");
+            Console.WriteLine("[StartProcessAndWait] FilePath: " + remoteSourceFilePath);
+            Console.WriteLine("[StartProcessAndWait] Args: " + args);
+            return Execute("StartProcessAndWait", $"{remoteSourceFilePath} {waitTimeInSeconds} {args}");
+        }
+
+        public bool CopyDirectory(string sourceDirectoryPath, string targetDirectoryPath,
+            bool isCopyToTargetPC = true)
+        {
+            Console.WriteLine("[CopyDirectory] Source: " + sourceDirectoryPath);
+            Console.WriteLine("[CopyDirectory] Target: " + targetDirectoryPath);
+            var command = isCopyToTargetPC ? "CopyDirectoryToRecursive" : "CopyDirectoryFrom";
+            return Execute(command, $"{sourceDirectoryPath} {targetDirectoryPath}");
+        }
+
+        public bool CopyFile(string remoteSourceFilePath, string localTargetDirectoryPath)
+        {
+            Console.WriteLine("[CopyFile] Source: " + remoteSourceFilePath);
+            Console.WriteLine("[CopyFile] Target: " + localTargetDirectoryPath);
+            return Execute("CopyFileFrom", $"{remoteSourceFilePath} {localTargetDirectoryPath}");
+        }
+
+        public bool DeleteFile(string remoteSourceFilePath)
+        {
+            Console.WriteLine("[DeleteFile] Path: " + remoteSourceFilePath);
+            return Execute("DeleteFile", $"{remoteSourceFilePath}");
+        }
+
+        public bool CreateDirectory(string remoteSourceFilePath)
+        {
+            Console.WriteLine("[CreateDirectory] Path: " + remoteSourceFilePath);
+            return Execute("CreateDir", $"{remoteSourceFilePath}");
+        }
+
+        public bool DeleteDirectory(string remoteSourceFilePath)
+        {
+            Console.WriteLine("[DeleteDirectory] Path: " + remoteSourceFilePath);
+            return Execute("DeleteDir", $"{remoteSourceFilePath}");
+        }
+
+        private static bool Execute(string command, string args)
+        {
+            var fullArgs = new StringBuilder();
+            fullArgs.Append(command + " ");
+            fullArgs.Append(TestTargetSystem.GetTargetIp());
+            fullArgs.Append(" " + args);
+
+            string fullCommandArgs = fullArgs.ToString();
+
+            Console.WriteLine("[Execute] RemoteAccessClientToolPath: " + RemoteAccessClientToolPath);
+            Console.WriteLine("[Execute] Full command: " + fullCommandArgs);
+
+            var process = Process.Start(RemoteAccessClientToolPath, fullCommandArgs);
+            process?.WaitForExit();
+
+            Console.WriteLine("[Execute] ExitCode: " + process?.ExitCode);
+
+            return process?.ExitCode == 0;
+        }
+
+        public void Stop()
+        {
+            if (_remoteAccessTool == null)
+                throw new InvalidOperationException("RemoteAccessTool was never running");
+            if (_remoteAccessTool.HasExited)
+                throw new InvalidOperationException("RemoteAccessTool exited unexpectedly");
+
+            _remoteAccessTool.Kill();
+            _remoteAccessTool = null;
         }
     }
 }
